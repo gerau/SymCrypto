@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -7,24 +8,49 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace GeffeGenerator
 {
     public class BitSequence
     {
-        public int size;
+        public ulong size;
         public ulong[] sequence;
 
-        public BitSequence(int size)
+        public BitSequence(ulong size)
         {
             this.size = size;
-            sequence = new ulong[size/64 + 1];
+            if(size%64 == 0) 
+            {
+                sequence = new ulong[size/64];
+            }
+            else
+            {
+                sequence = new ulong[size / 64 + 1];
+            }
+        }
+        public BitSequence(BitSequence copy)
+        {
+            this.size = copy.size;
+
+            if (size % 64 == 0)
+            {
+                sequence = new ulong[size / 64];
+            }
+            else
+            {
+                sequence = new ulong[size / 64 + 1];
+            }
+            for (ulong i = 0; i < (ulong)sequence.Length; i++)
+            {
+                sequence[i] = copy.sequence[i];
+            }
         }
 
         public static BitSequence operator ^(BitSequence first, BitSequence second)
         {
             BitSequence result = new(first.size);
-            for (int i = 0; i <= first.size / 64; i++)
+            for (ulong i = 0; i < (ulong)first.sequence.Length; i++)
             {
                 result.sequence[i] = first.sequence[i] ^ second.sequence[i];
             }
@@ -34,7 +60,7 @@ namespace GeffeGenerator
         public static BitSequence operator &(BitSequence first, BitSequence second)
         {
             BitSequence result = new(first.size);
-            for (int i = 0; i <= first.size / 64; i++)
+            for (ulong i = 0; i < (ulong)first.sequence.Length; i++)
             {
                 result.sequence[i] = first.sequence[i] & second.sequence[i];
             }
@@ -43,37 +69,63 @@ namespace GeffeGenerator
         public int Count()
         {
             var sum = 0;
-            for(int i = 0; i <= size / 64; i++)
+            for(ulong i = 0; i < (ulong)sequence.Length; i++)
             {
                 sum += BitOperations.PopCount(sequence[i]);
             }
             return sum;
         }
 
-        public void SetBit(int i)
+        public void SetBit(ulong i)
         {
-            sequence[i / 64] |= (ulong)1 << (i % 64);
+            sequence[i / 64] |= (ulong)1 << ((int)i % 64);
         }
 
         public void Clear()
         {
-            for (int i = 0; i <= size / 64; i++)
+            for (ulong i = 0; i <= size / 64; i++)
             {
                 sequence[i] = 0;
             }
         }
-        public int GetBit(int position)
+        public int GetBit(ulong position)
         {
-            int count = position / 64;
-            int shift = position % 64;
-            return (int)(sequence[count] >> shift & 1);
+            ulong count = position / 64;
+            ulong shift = position % 64;
+            return (int)(sequence[count] >> (int)shift & 1);
+        }
+        public BitSequence GetNBits(ulong position, ulong n)
+        {
+            ulong count = position / 64;
+            int shift = (int)position % 64;
+            var N = n / 64;
+            BitSequence result = new(n);
+        
+            for (ulong i = 0; i < (ulong)result.sequence.Length; i++)
+            {
+                result.sequence[i] += sequence[i + count] >> shift;
+                result.sequence[i] += sequence[i + count + 1] << (64 - shift);
+            }
+
+            
+            return result;
+        }
+        public BitSequence ShiftToLeft()
+        {
+            BitSequence result = new BitSequence(size);
+            for (ulong i = 0; i < (ulong)result.sequence.Length - 1; i++)
+            {
+                result.sequence[i] = sequence[i] >> 1 | sequence[i + 1] << 63;
+            }
+            result.sequence[result.sequence.Length - 1] = sequence[result.sequence.Length - 1] >> 1 ;
+            return result;
         }
         public override string ToString()
         {
             var result = "";
-            for (int i = 0; i < size; i++)
+            for (ulong i = 0; i < size; i++)
             {
-                if (GetBit(i) == 1)
+                if (GetBit((ulong)i) == 1)
                 {
                     result += "1";
                 }
@@ -84,6 +136,16 @@ namespace GeffeGenerator
             }
             return result;
         }
+        public static BitSequence GetOnes(ulong size)
+        {
+            var result = new BitSequence(size);
+            for(ulong i = 0; i < size; i++)
+            {
+                result.SetBit(i);
+            }
+            return result;
+        }
+
 
     }
 }

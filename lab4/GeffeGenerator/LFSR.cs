@@ -30,7 +30,7 @@ namespace GeffeGenerator
         {
             uint result = currentState & 1;
 
-            currentState = (uint)((currentState >> 1) ^ ((BitOperations.PopCount(currentState & mask) & 1) << (size-1)));
+            currentState = (uint)((currentState >> 1) + ((BitOperations.PopCount(currentState & mask) & 1) << (size-1)));
 
             return result;
         }
